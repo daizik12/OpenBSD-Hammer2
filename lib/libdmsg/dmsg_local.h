@@ -65,9 +65,9 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>	/* aes_256_cbc functions */
 
-#include <machine/atomic.h>
-#include <dev/pci/drm/drm_atomic.h>
+#define _KERNEL
 #include <sys/atomic.h>
+#undef _KERNEL
 
 #include "dmsg.h"
 
@@ -77,20 +77,27 @@ __extension__ ({ register __uint64_t __X = (x); \
 	__asm ("bswap %0" : "+r" (__X)); \
 __X; })
 
+#include <endian.h>
 #ifdef __i386__
 
-#define __byte_swap_long(x)     __byte_swap_long_const(x)
+//#define __byte_swap_long(x)     __byte_swap_long_const(x)
+#define __byte_swap_long(x) htobe32(x)
 
 #else
  
+#define __byte_swap_long(x) htobe64(x)
+
+#if 0
   #ifdef __OPTIMIZE__
     #define __byte_swap_long(x)     (__builtin_constant_p(x) ? \
 	 __byte_swap_long_const(x) : __byte_swap_long_var(x))
   #else   /* __OPTIMIZE__ */
 	#define __byte_swap_long(x)     __byte_swap_long_var(x)
   #endif  /* __OPTIMIZE__ */
+#endif
 
 #endif  /* __i386__ */
+
 
 static __inline __uint64_t
 __bswap64(__uint64_t _x)

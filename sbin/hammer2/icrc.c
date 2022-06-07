@@ -34,7 +34,7 @@
 #include <sys/uuid.h>
 #include <sys/dmsg.h>
 
-#include <../../sys/hammer2/hammer2_disk.h>
+#include "../../sys/hammer2/hammer2_disk.h"
 
 #include "hammer2.h"
 

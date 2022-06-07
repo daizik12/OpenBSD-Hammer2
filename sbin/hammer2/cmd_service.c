@@ -37,7 +37,7 @@
 
 #include <sys/xdiskioctl.h>
 #include <machine/atomic.h>
-#include <../../sys/hammer2/hammer2_disk.h>
+#include "../../sys/hammer2/hammer2_disk.h"
 #include <sys/stat.h>
 #include "getmntvinfo.h"
 

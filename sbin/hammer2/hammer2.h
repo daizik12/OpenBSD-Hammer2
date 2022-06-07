@@ -61,9 +61,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <../../sys/hammer2/hammer2_disk.h>
-#include <../../sys/hammer2/hammer2_mount.h>
-#include <../../sys/hammer2/hammer2_ioctl.h>
+#include "../../sys/hammer2/hammer2_disk.h"
+#include "../../sys/hammer2/hammer2_mount.h"
+#include "../../sys/hammer2/hammer2_ioctl.h"
 
 #include <stdio.h>
 #include <stdlib.h>

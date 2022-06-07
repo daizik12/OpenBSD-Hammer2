@@ -100,7 +100,7 @@
  *			  code, not here.
  */
 
-void (*dmsg_node_handler)(void **opaquep, struct dmsg_dmsg *msg, int op);
+// void (*dmsg_node_handler)(void **opaquep, struct dmsg_dmsg *msg, int op);
 struct h2span_link;
 struct h2span_relay;
 TAILQ_HEAD(h2span_conn_queue, h2span_conn);

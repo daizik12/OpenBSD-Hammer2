@@ -37,7 +37,6 @@
 #include "dmsg_local.h"
 #include "realhostname.h"
 #include <sys/stdint.h>
-#include <machine/atomic.h>
 
 /* add to util.h library */
 #define	HOSTNAME_FOUND		0
@@ -371,7 +370,7 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 	 */
 	if (getpeername(iocom->sock_fd, &sa.sa, &salen) < 0) {
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_NOPEER;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "accept: getpeername() failed\n");
 		goto done;
@@ -379,7 +378,7 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 	if (getnameinfo(&sa.sa, salen, peername, sizeof(peername),
 			NULL, 0, NI_NUMERICHOST) < 0) {
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_NOPEER;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "accept: cannot decode sockaddr\n");
 		goto done;
@@ -407,7 +406,7 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 			 DMSG_PATH_REMOTE, peername);
 		if (stat(path, &st) < 0) {
 			iocom->ioq_rx.error = DMSG_IOQ_ERROR_NORKEY;
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 			if (DMsgDebugOpt)
 				fprintf(stderr, "auth failure: unknown host\n");
 			goto done;
@@ -421,7 +420,7 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 		fclose(fp);
 		if (keys[0] == NULL) {
 			iocom->ioq_rx.error = DMSG_IOQ_ERROR_KEYFMT;
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 			if (DMsgDebugOpt)
 				fprintf(stderr,
 					"auth failure: bad key format\n");
@@ -436,14 +435,14 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 	asprintf(&path, DMSG_DEFAULT_DIR "/rsa.pub");
 	if ((fp = fopen(path, "r")) == NULL) {
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_NOLKEY;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		goto done;
 	}
 	keys[1] = PEM_read_RSA_PUBKEY(fp, NULL, NULL, NULL);
 	fclose(fp);
 	if (keys[1] == NULL) {
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_KEYFMT;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "auth failure: bad host key format\n");
 		goto done;
@@ -453,7 +452,7 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 	asprintf(&path, DMSG_DEFAULT_DIR "/rsa.prv");
 	if ((fp = fopen(path, "r")) == NULL) {
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_NOLKEY;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "auth failure: bad host key format\n");
 		goto done;
@@ -462,7 +461,7 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 	fclose(fp);
 	if (keys[2] == NULL) {
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_KEYFMT;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "auth failure: bad host key format\n");
 		goto done;
@@ -479,7 +478,7 @@ dmsg_crypto_negotiate(dmsg_iocom_t *iocom)
 		    blksize != (size_t)RSA_size(keys[2]) ||
 		    sizeof(handtx) % blksize != 0) {
 			iocom->ioq_rx.error = DMSG_IOQ_ERROR_KEYFMT;
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 			if (DMsgDebugOpt)
 				fprintf(stderr, "auth failure: "
 						"key size mismatch\n");
@@ -506,7 +505,7 @@ urandfail:
 		if (fd >= 0)
 			close(fd);
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_BADURANDOM;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "auth failure: bad rng\n");
 		goto done;
@@ -574,7 +573,7 @@ urandfail:
 		}
 	}
 	if (iocom->ioq_rx.error) {
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "auth failure: key exchange failure "
 					"during encryption\n");
@@ -604,7 +603,7 @@ urandfail:
 		}
 	}
 	if (iocom->ioq_rx.error) {
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "auth failure: key exchange failure "
 					"during decryption\n");
@@ -618,7 +617,7 @@ urandfail:
 	if (i != sizeof(handrx)) {
 keyxchgfail:
 		iocom->ioq_rx.error = DMSG_IOQ_ERROR_KEYXCHGFAIL;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		if (DMsgDebugOpt)
 			fprintf(stderr, "auth failure: key exchange failure\n");
 		goto done;
@@ -658,7 +657,7 @@ keyxchgfail:
 	if (error)
 		goto keyxchgfail;
 
-	atomic_set_int(&iocom->flags, DMSG_IOCOMF_CRYPTED);
+	atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_CRYPTED);
 
 	if (DMsgDebugOpt)
 		fprintf(stderr, "auth success: %s\n", handrx.quickmsg);

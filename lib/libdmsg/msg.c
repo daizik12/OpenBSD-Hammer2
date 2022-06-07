@@ -35,9 +35,7 @@
 
 #include "dmsg_local.h"
 #include <pthread.h>
-#include <machine/atomic.h>
 #include <sys/stdint.h>
-#include <sys/atomic.h>
 #include <sys/param.h>
 
 //#include <sys/mman.h>
@@ -56,9 +54,6 @@ x86_atomic_setbits_u32(volatile u_int32_t *ptr, u_int32_t bits)
 }
 */
 
-void atomic_setbits_int(unsigned int *p, unsigned int b);
-void atomic_clearbits_int(unsigned int *p, unsigned int b);
-
 
 int DMsgDebugOpt;
 int dmsg_state_count;
@@ -71,16 +66,6 @@ static void dmsg_msg_simulate_failure(dmsg_state_t *state, int error);
 
 RB_GENERATE(dmsg_state_tree, dmsg_state, rbnode, dmsg_state_cmp);
 
-
-void atomic_setbits_int(unsigned int *p, unsigned int b)
-{
-	printf("fix me111\n");
-}
-
-void atomic_clearbits_int(unsigned int *p, unsigned int b)
-{
-	printf("fix me!!! clearbits_int\n");
-}
 
 
 /*
@@ -228,9 +213,9 @@ dmsg_iocom_restate(dmsg_iocom_t *iocom,
 	iocom->signal_callback = signal_func;
 	iocom->rcvmsg_callback = rcvmsg_func;
 	if (signal_func)
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_SWORK);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_SWORK);
 	else
-		atomic_clear_int(&iocom->flags, DMSG_IOCOMF_SWORK);
+		atomic_clearbits_int(&iocom->flags, DMSG_IOCOMF_SWORK);
 
 	pthread_mutex_unlock(&iocom->mtx);
 }
@@ -240,7 +225,7 @@ dmsg_iocom_signal(dmsg_iocom_t *iocom)
 {
 	pthread_mutex_lock(&iocom->mtx);
 	if (iocom->signal_callback)
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_SWORK);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_SWORK);
 	pthread_mutex_unlock(&iocom->mtx);
 }
 
@@ -555,29 +540,29 @@ dmsg_iocom_core(dmsg_iocom_t *iocom)
 			poll(fds, count, timeout);
 
 			if (wi >= 0 && (fds[wi].revents & POLLIN))
-				atomic_set_int(&iocom->flags,
+				atomic_setbits_int(&iocom->flags,
 					       DMSG_IOCOMF_PWORK);
 			if (si >= 0 && (fds[si].revents & POLLIN))
-				atomic_set_int(&iocom->flags,
+				atomic_setbits_int(&iocom->flags,
 					       DMSG_IOCOMF_RWORK);
 			if (si >= 0 && (fds[si].revents & POLLOUT))
-				atomic_set_int(&iocom->flags,
+				atomic_setbits_int(&iocom->flags,
 					       DMSG_IOCOMF_WWORK);
 			if (wi >= 0 && (fds[wi].revents & POLLOUT))
-				atomic_set_int(&iocom->flags,
+				atomic_setbits_int(&iocom->flags,
 					       DMSG_IOCOMF_WWORK);
 			if (ai >= 0 && (fds[ai].revents & POLLIN))
-				atomic_set_int(&iocom->flags,
+				atomic_setbits_int(&iocom->flags,
 					       DMSG_IOCOMF_ARWORK);
 		} else {
 			/*
 			 * Always check the pipe
 			 */
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_PWORK);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_PWORK);
 		}
 
 		if (iocom->flags & DMSG_IOCOMF_SWORK) {
-			atomic_clear_int(&iocom->flags, DMSG_IOCOMF_SWORK);
+			atomic_clearbits_int(&iocom->flags, DMSG_IOCOMF_SWORK);
 			iocom->signal_callback(iocom);
 		}
 
@@ -587,10 +572,10 @@ dmsg_iocom_core(dmsg_iocom_t *iocom)
 		 * the pipe with a dummy read.
 		 */
 		if (iocom->flags & DMSG_IOCOMF_PWORK) {
-			atomic_clear_int(&iocom->flags, DMSG_IOCOMF_PWORK);
+			atomic_clearbits_int(&iocom->flags, DMSG_IOCOMF_PWORK);
 			read(iocom->wakeupfds[0], dummybuf, sizeof(dummybuf));
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_RWORK);
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_WWORK);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_RWORK);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_WWORK);
 			if (TAILQ_FIRST(&iocom->txmsgq))
 				dmsg_iocom_flush1(iocom);
 		}
@@ -619,7 +604,7 @@ dmsg_iocom_core(dmsg_iocom_t *iocom)
 		}
 
 		if (iocom->flags & DMSG_IOCOMF_ARWORK) {
-			atomic_clear_int(&iocom->flags, DMSG_IOCOMF_ARWORK);
+			atomic_clearbits_int(&iocom->flags, DMSG_IOCOMF_ARWORK);
 			iocom->altmsg_callback(iocom);
 		}
 	}
@@ -697,7 +682,7 @@ again:
 		TAILQ_REMOVE(&ioq->msgq, msg, qentry);
 		return (msg);
 	}
-	atomic_clear_int(&iocom->flags, DMSG_IOCOMF_RREQ | DMSG_IOCOMF_RWORK);
+	atomic_clearbits_int(&iocom->flags, DMSG_IOCOMF_RREQ | DMSG_IOCOMF_RWORK);
 
 	/*
 	 * If the stream is errored out we stop processing it.
@@ -1129,12 +1114,12 @@ skip:
 
 		tmp_state = NULL;
 		RB_FOREACH(state, dmsg_state_tree, &iocom->staterd_tree) {
-			atomic_set_int(&state->flags, DMSG_STATE_DYING);
+			atomic_setbits_int(&state->flags, DMSG_STATE_DYING);
 			if (tmp_state == NULL && TAILQ_EMPTY(&state->subq))
 				tmp_state = state;
 		}
 		RB_FOREACH(state, dmsg_state_tree, &iocom->statewr_tree) {
-			atomic_set_int(&state->flags, DMSG_STATE_DYING);
+			atomic_setbits_int(&state->flags, DMSG_STATE_DYING);
 			if (tmp_state == NULL && TAILQ_EMPTY(&state->subq))
 				tmp_state = state;
 		}
@@ -1160,7 +1145,7 @@ skip:
 		 * re-set RWORK.
 		 */
 		if (msg)
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_RWORK);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_RWORK);
 #endif
 	} else if (msg == NULL) {
 		/*
@@ -1170,7 +1155,7 @@ skip:
 		 * Leave ioq->msg intact.
 		 * Leave the FIFO intact.
 		 */
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_RREQ);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_RREQ);
 	} else {
 		/*
 		 * Continue processing msg.
@@ -1184,13 +1169,13 @@ skip:
 		 */
 		if (ioq->fifo_beg == ioq->fifo_cdx &&
 		    ioq->fifo_cdn == ioq->fifo_end) {
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_RREQ);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_RREQ);
 			ioq->fifo_cdx = 0;
 			ioq->fifo_cdn = 0;
 			ioq->fifo_beg = 0;
 			ioq->fifo_end = 0;
 		} else {
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_RWORK);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_RWORK);
 		}
 		ioq->state = DMSG_MSGQ_STATE_HEADER1;
 		ioq->msg = NULL;
@@ -1252,7 +1237,7 @@ dmsg_iocom_flush1(dmsg_iocom_t *iocom)
 	size_t abytes;
 	dmsg_msg_queue_t tmpq;
 
-	atomic_clear_int(&iocom->flags, DMSG_IOCOMF_WREQ | DMSG_IOCOMF_WWORK);
+	atomic_clearbits_int(&iocom->flags, DMSG_IOCOMF_WREQ | DMSG_IOCOMF_WWORK);
 	TAILQ_INIT(&tmpq);
 	pthread_mutex_lock(&iocom->mtx);
 	while ((msg = TAILQ_FIRST(&iocom->txmsgq)) != NULL) {
@@ -1499,10 +1484,10 @@ dmsg_iocom_flush2(dmsg_iocom_t *iocom)
 			/*
 			 * Wait for socket buffer space
 			 */
-			atomic_set_int(&iocom->flags, DMSG_IOCOMF_WREQ);
+			atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_WREQ);
 		}
 	} else {
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_WREQ);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_WREQ);
 	}
 	if (ioq->error) {
 		dmsg_iocom_drain(iocom);
@@ -1523,7 +1508,7 @@ dmsg_iocom_drain(dmsg_iocom_t *iocom)
 	dmsg_ioq_t *ioq = &iocom->ioq_tx;
 	dmsg_msg_t *msg;
 
-	atomic_clear_int(&iocom->flags, DMSG_IOCOMF_WREQ | DMSG_IOCOMF_WWORK);
+	atomic_clearbits_int(&iocom->flags, DMSG_IOCOMF_WREQ | DMSG_IOCOMF_WWORK);
 	ioq->hbytes = 0;
 	ioq->abytes = 0;
 
@@ -1627,7 +1612,7 @@ dmsg_msg_simulate_failure(dmsg_state_t *state, int error)
 					    DMSG_LNK_ERROR,
 					    NULL, NULL);
 		msg->any.head.error = error;
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_EOF);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_EOF);
 		fprintf(stderr, "EOF ON SOCKET %d\n", iocom->sock_fd);
 	} else if (state->flags & DMSG_STATE_OPPOSITE) {
 		/*
@@ -1642,7 +1627,7 @@ dmsg_msg_simulate_failure(dmsg_state_t *state, int error)
 				error, state, state->rxcmd,
 				state->txcmd, state->func);
 			usleep(100000);	/* XXX */
-			atomic_set_int(&iocom->flags,
+			atomic_setbits_int(&iocom->flags,
 				       DMSG_IOCOMF_RWORK);
 		} else {
 			fprintf(stderr, "SIMULATE ERROR1\n");
@@ -1674,7 +1659,7 @@ dmsg_msg_simulate_failure(dmsg_state_t *state, int error)
 				error, state, state->rxcmd,
 				state->txcmd, state->func);
 			usleep(100000);	/* XXX */
-			atomic_set_int(&iocom->flags,
+			atomic_setbits_int(&iocom->flags,
 				       DMSG_IOCOMF_RWORK);
 		} else {
 			fprintf(stderr, "SIMULATE ERROR1\n");
@@ -1699,7 +1684,7 @@ dmsg_msg_simulate_failure(dmsg_state_t *state, int error)
 	}
 	if (msg) {
 		TAILQ_INSERT_TAIL(&iocom->ioq_rx.msgq, msg, qentry);
-		atomic_set_int(&iocom->flags, DMSG_IOCOMF_RWORK);
+		atomic_setbits_int(&iocom->flags, DMSG_IOCOMF_RWORK);
 	}
 }
 
@@ -2429,7 +2414,7 @@ dmsg_state_hold(dmsg_state_t *state)
 void
 dmsg_state_drop(dmsg_state_t *state)
 {
-	if (atomic_fetchadd_int(&state->refs, -1) == 1)
+	if (atomic_dec_int_nv(&state->refs) == 0)
 		dmsg_state_free(state);
 }
 
